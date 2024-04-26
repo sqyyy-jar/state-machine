@@ -8,12 +8,14 @@ import java.nio.file.StandardOpenOption
 
 @OptIn(ExperimentalUnsignedTypes::class)
 class Runtime(private val program: CompiledProgram) {
+    private val env = program.env
     private val stack = ULongArray(16) // 1024 stack entries
-    private var stackIndex = 1023
+    private var stackIndex = stack.size * 8 - 1
     private var state = program.states[0]
     private var programCounter = 0
+    private var yielded = true
 
-    init {
+    init { // todo - remove
         val file = Path.of("out.bin")
         if (Files.exists(file)) {
             Files.delete(file)
@@ -49,7 +51,11 @@ class Runtime(private val program: CompiledProgram) {
         return state.code[programCounter++]
     }
 
-    fun step() {
+    private fun step() {
+        if (state.code.isEmpty()) {
+            yield()
+            return
+        }
         val op = fetch()
         when (op) {
             OP_SWITCH -> {
@@ -57,13 +63,22 @@ class Runtime(private val program: CompiledProgram) {
                 programCounter = 0
             }
 
-            OP_FORWARD -> println("forward")
-            OP_TURN_LEFT -> println("left")
-            OP_TURN_RIGHT -> println("right")
-            OP_AND -> push(pop() && pop())
-            OP_OR -> push(pop() || pop())
-            OP_XOR -> push(pop() xor pop())
-            OP_NOT -> push(!pop())
+            OP_AND -> {
+                push(pop() && pop())
+            }
+
+            OP_OR -> {
+                push(pop() || pop())
+            }
+
+            OP_XOR -> {
+                push(pop() xor pop())
+            }
+
+            OP_NOT -> {
+                push(!pop())
+            }
+
             OP_JUMP_IF -> {
                 val offset = fetch()
                 if (pop()) {
@@ -78,9 +93,34 @@ class Runtime(private val program: CompiledProgram) {
                 }
             }
 
-            OP_IS_SOLID -> push(true)
-            OP_IS_AIR -> push(true)
+            OP_MACRO -> {
+                val index = fetch()
+                env.invokeMacro(this, index)
+            }
+
+            OP_BOOL_MACRO -> {
+                val index = fetch()
+                push(env.invokeBoolMacro(this, index))
+            }
         }
-        programCounter %= state.code.size
+        if (programCounter >= state.code.size) {
+            programCounter = 0
+            yield()
+        }
+    }
+
+    fun run(limit: Int) {
+        yielded = false
+        for (i in 0 until limit) {
+            if (yielded) {
+                break
+            }
+            step()
+        }
+        yielded = true
+    }
+
+    fun yield() {
+        yielded = true
     }
 }

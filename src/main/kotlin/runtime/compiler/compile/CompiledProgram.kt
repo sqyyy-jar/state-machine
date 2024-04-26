@@ -1,3 +1,5 @@
 package runtime.compiler.compile
 
-data class CompiledProgram(val states: List<CompiledCode>)
+import runtime.compiler.Environment
+
+data class CompiledProgram(val env: Environment, val states: List<CompiledCode>)

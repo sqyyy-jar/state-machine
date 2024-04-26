@@ -1,3 +1,3 @@
 package runtime.compiler
 
-data class MacroInfo(val output: Boolean, val op: UByte)
+data class MacroInfo(val index: UByte, val output: Boolean)

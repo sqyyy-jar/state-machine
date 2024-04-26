@@ -6,56 +6,41 @@ package runtime.bytecode
 const val OP_SWITCH: UByte = 0x00u
 
 /**
- * `(): --`
+ * `(): Boolean Boolean -- Boolean`
  */
-const val OP_FORWARD: UByte = 0x01u
-
-/**
- * `(): --`
- */
-const val OP_TURN_LEFT: UByte = 0x02u
-
-/**
- * `(): --`
- */
-const val OP_TURN_RIGHT: UByte = 0x03u
+const val OP_AND: UByte = 0x01u
 
 /**
  * `(): Boolean Boolean -- Boolean`
  */
-const val OP_AND: UByte = 0x10u
+const val OP_OR: UByte = 0x02u
 
 /**
  * `(): Boolean Boolean -- Boolean`
  */
-const val OP_OR: UByte = 0x11u
-
-/**
- * `(): Boolean Boolean -- Boolean`
- */
-const val OP_XOR: UByte = 0x12u
+const val OP_XOR: UByte = 0x03u
 
 /**
  * `(): Boolean -- Boolean`
  */
-const val OP_NOT: UByte = 0x13u
+const val OP_NOT: UByte = 0x04u
 
 /**
  * `(offset: UByte): Boolean --`
  */
-const val OP_JUMP_IF: UByte = 0x14u
+const val OP_JUMP_IF: UByte = 0x05u
 
 /**
  * `(offset: UByte): Boolean --`
  */
-const val OP_JUMP_IFN: UByte = 0x15u
+const val OP_JUMP_IFN: UByte = 0x06u
 
 /**
- * `(): -- Boolean`
+ * `(index: UByte): --`
  */
-const val OP_IS_SOLID: UByte = 0x20u
+const val OP_MACRO: UByte = 0x07u;
 
 /**
- * `(): -- Boolean`
+ * `(index: UByte): -- Boolean`
  */
-const val OP_IS_AIR: UByte = 0x21u
+const val OP_BOOL_MACRO: UByte = 0x08u

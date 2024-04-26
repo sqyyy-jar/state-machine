@@ -23,9 +23,14 @@ data class Conditional(val condition: Expression, val expr: Expression) : Expres
     }
 }
 
-data class RawOp(val op: UByte, override val output: Boolean) : Expression {
+data class Macro(val index: UByte, override val output: Boolean) : Expression {
     override fun expand(code: CodeBuffer, stateIndices: Map<String, Int>) {
-        code.writeByte(op)
+        if (output) {
+            code.writeByte(OP_BOOL_MACRO)
+        } else {
+            code.writeByte(OP_MACRO)
+        }
+        code.writeByte(index)
     }
 }
 

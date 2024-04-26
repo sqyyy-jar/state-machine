@@ -1,19 +1,17 @@
 package runtime.compiler
 
-import runtime.bytecode.*
 import runtime.compiler.compile.CompiledProgram
 import runtime.compiler.parse.*
 
-private val macros = mapOf(
-    "forward" to MacroInfo(false, OP_FORWARD),
-    "turnLeft" to MacroInfo(false, OP_TURN_LEFT),
-    "turnRight" to MacroInfo(false, OP_TURN_RIGHT),
-    "isSolid" to MacroInfo(true, OP_IS_SOLID),
-    "isAir" to MacroInfo(true, OP_IS_AIR),
-)
-
-class Compiler(private val source: String) {
+class Compiler(private val source: String, private val env: Environment) {
     private val lexer = Lexer(source)
+
+    private fun assertOutput(expression: Expression, output: Boolean, location: Location): Expression {
+        if (expression.output != output) {
+            throw CompileException("Invalid operand for operator", location)
+        }
+        return expression
+    }
 
     private fun parseGroup(): Expression {
         lexer.expectToken(Token.Kind.LeftParent)
@@ -25,9 +23,9 @@ class Compiler(private val source: String) {
     private fun parseInvoke(): Expression {
         val name = lexer.expectToken(Token.Kind.Identifier).location
         val nameString = source.slice(name.start..<name.end)
-        val macro = macros[nameString]
+        val macro = env.getMacro(nameString)
         if (macro != null) {
-            return RawOp(macro.op, macro.output)
+            return Macro(macro.index, macro.output)
         }
         return Switch(nameString, name)
     }
@@ -37,7 +35,8 @@ class Compiler(private val source: String) {
         return when (token.kind) {
             Token.Kind.Not -> {
                 lexer.nextToken()
-                UnaryOperation(OperationKind.Not, parseUnary())
+                val right = assertOutput(parseUnary(), true, token.location)
+                UnaryOperation(OperationKind.Not, right)
             }
 
             Token.Kind.LeftParent -> parseGroup()
@@ -51,22 +50,30 @@ class Compiler(private val source: String) {
         return when (op.kind) {
             Token.Kind.And -> {
                 lexer.nextToken()
-                parseBinary(BinaryOperation(OperationKind.And, left, parseUnary())) // left-associative
+                assertOutput(left, true, op.location)
+                val right = assertOutput(parseUnary(), true, op.location)
+                parseBinary(BinaryOperation(OperationKind.And, left, right)) // left-associative
             }
 
             Token.Kind.Or -> {
                 lexer.nextToken()
-                parseBinary(BinaryOperation(OperationKind.Or, left, parseUnary())) // left-associative
+                assertOutput(left, true, op.location)
+                val right = assertOutput(parseUnary(), true, op.location)
+                parseBinary(BinaryOperation(OperationKind.Or, left, right)) // left-associative
             }
 
             Token.Kind.Xor -> {
                 lexer.nextToken()
-                parseBinary(BinaryOperation(OperationKind.Xor, left, parseUnary())) // left-associative
+                assertOutput(left, true, op.location)
+                val right = assertOutput(parseUnary(), true, op.location)
+                parseBinary(BinaryOperation(OperationKind.Xor, left, right)) // left-associative
             }
 
             Token.Kind.Arrow -> {
                 lexer.nextToken()
-                Conditional(left, parseBinary()) // right-associative
+                assertOutput(left, true, op.location)
+                val right = assertOutput(parseBinary(), false, op.location)
+                Conditional(left, right) // right-associative
             }
 
             else -> left
@@ -84,9 +91,10 @@ class Compiler(private val source: String) {
                 val token = lexer.peekToken() ?: throw CompileException("Unclosed scope", leftParen)
                 if (token.kind == Token.Kind.RightParen) {
                     lexer.nextToken()
-                    break;
+                    break
                 }
-                code.add(parseBinary())
+                val statement = assertOutput(parseBinary(), false, leftParen) // todo - not an operator
+                code.add(statement)
             }
             stateIndices[source.slice(name.start..<name.end)] = states.size
             states.add(State(code))
@@ -97,7 +105,7 @@ class Compiler(private val source: String) {
         if (states.size > 255) {
             throw CompileException("Too many states")
         }
-        return Ast(states, stateIndices)
+        return Ast(env, states, stateIndices)
     }
 
     fun compile(): CompiledProgram {
